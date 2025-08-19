@@ -8,11 +8,21 @@ spring:
   cloud:
     gateway:
       routes:
-        # New Route for the Product Catalog Service
+        # Route for the Product Catalog Service
         - id: product-catalog-service-route
           uri: lb://product-catalog-service
           predicates:
             - Path=/api/v1/products/**
+
+        # Route for the User Service
+        - id: user-service-register-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+            - id: user-service-auth-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/auth/**
 
   security:
     oauth2:
