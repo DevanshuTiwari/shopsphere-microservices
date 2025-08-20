@@ -3,6 +3,8 @@ package com.dt.product_catalog_service.controller;
 
 import com.dt.product_catalog_service.dto.ProductCreateRequest;
 import com.dt.product_catalog_service.dto.ProductResponse;
+import com.dt.product_catalog_service.dto.StockCheckRequest;
+import com.dt.product_catalog_service.dto.StockCheckResponse;
 import com.dt.product_catalog_service.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 @RestController
@@ -43,5 +46,15 @@ public class ProductController {
             @RequestParam(required = false) BigDecimal maxPrice,
             Pageable pageable) {
         return productService.searchProducts(name, category, minPrice, maxPrice, pageable);
+    }
+
+    @PostMapping("/stock-check")
+    public List<StockCheckResponse> checkStockAndGetDetails(@RequestBody List<StockCheckRequest> items) {
+        return productService.checkStockAndGetDetails(items);
+    }
+
+    @PostMapping("/decrease-stock")
+    public void decreaseStock(@RequestBody List<StockCheckRequest> items) {
+        productService.decreaseStock(items);
     }
 }

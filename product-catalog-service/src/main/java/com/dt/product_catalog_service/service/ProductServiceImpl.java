@@ -1,11 +1,17 @@
 package com.dt.product_catalog_service.service;
 
+import com.dt.product_catalog_service.dto.StockCheckRequest;
+import com.dt.product_catalog_service.dto.StockCheckResponse;
+import com.dt.product_catalog_service.exception.InsufficientStockException;
+import com.dt.product_catalog_service.exception.ResourceNotFoundException;
 import com.dt.product_catalog_service.model.Inventory;
 import com.dt.product_catalog_service.dto.ProductCreateRequest;
 import com.dt.product_catalog_service.dto.ProductResponse;
 import com.dt.product_catalog_service.model.Product;
+import com.dt.product_catalog_service.repository.InventoryRepository;
 import com.dt.product_catalog_service.repository.ProductRepository;
 import com.dt.product_catalog_service.specification.ProductSpecification;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,16 +19,20 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Service
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
     @Autowired
-    public ProductServiceImpl(ProductRepository productRepository) {
+    public ProductServiceImpl(ProductRepository productRepository, InventoryRepository inventoryRepository) {
         this.productRepository = productRepository;
+        this.inventoryRepository = inventoryRepository;
     }
 
     @Override
@@ -59,7 +69,7 @@ public class ProductServiceImpl implements ProductService {
         Specification<Product> productSpecification = Specification.unrestricted();
 
         // Search criteria on the basis of name
-        if(name != null && !name.isEmpty()){
+        if (name != null && !name.isEmpty()) {
             productSpecification = productSpecification.and(ProductSpecification.hasName(name));
         }
 
@@ -80,6 +90,47 @@ public class ProductServiceImpl implements ProductService {
 
         return productRepository.findAll(productSpecification, pageable)
                 .map(this::mapToProductResponse);
+    }
+
+    @Override
+    public List<StockCheckResponse> checkStockAndGetDetails(List<StockCheckRequest> items) {
+
+        List<StockCheckResponse> responses = new ArrayList<>();
+
+        for (StockCheckRequest item : items) {
+            Product product = productRepository.findById(item.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + item.productId()));
+
+            Inventory inventory = product.getInventory();
+            boolean hasEnoughStock = inventory.getProductStockCount() >= item.quantity();
+
+            StockCheckResponse response = new StockCheckResponse(
+                    product.getId(),
+                    hasEnoughStock,
+                    product.getProductName(),
+                    product.getProductPrice()
+            );
+
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    @Override
+    @Transactional
+    public void decreaseStock(List<StockCheckRequest> items) {
+        for (StockCheckRequest item : items) {
+            Product product = productRepository.findById(item.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + item.productId()));
+
+            Inventory inventory = product.getInventory();
+
+            if (inventory.getProductStockCount() < item.quantity()) {
+                throw new InsufficientStockException("Insufficient stock for product id: " + item.productId());
+            }
+
+            inventory.setProductStockCount(inventory.getProductStockCount() - item.quantity());
+        }
     }
 
     // Helper method to map product response
