@@ -14,15 +14,24 @@ spring:
           predicates:
             - Path=/api/v1/products/**
 
-        # Route for the User Service
+        # Route for the User Service (Register)
         - id: user-service-register-route
           uri: lb://user-service
           predicates:
             - Path=/api/v1/users/**
-            - id: user-service-auth-route
-              uri: lb://user-service
-              predicates:
-                - Path=/api/v1/auth/**
+
+        # Route for the User Service (Auth)
+        - id: user-service-auth-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/auth/**
+
+        # Route for the Order Service
+        - id: order-service-route
+          uri: lb://order-service
+          predicates:
+            - Path=/api/v1/orders/**
+
 
   security:
     oauth2:
