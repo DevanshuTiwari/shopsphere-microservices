@@ -2,6 +2,7 @@ package com.dt.user_service.controller;
 
 
 import com.dt.user_service.dto.UserRequest;
+import com.dt.user_service.dto.UserResponse;
 import com.dt.user_service.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,4 +25,8 @@ public class UserController {
         userService.registerUser(userRequest);
     }
 
+    @GetMapping("/details/{email}")
+    public UserResponse getUserByEmail(@PathVariable String email) {
+        return userService.getUserByEmail(email);
+    }
 }

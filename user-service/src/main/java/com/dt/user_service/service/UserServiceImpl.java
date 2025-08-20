@@ -1,6 +1,8 @@
 package com.dt.user_service.service;
 
 import com.dt.user_service.dto.UserRequest;
+import com.dt.user_service.dto.UserResponse;
+import com.dt.user_service.exception.ResourceNotFoundException;
 import com.dt.user_service.model.User;
 import com.dt.user_service.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,5 +32,19 @@ public class UserServiceImpl implements UserService {
         user.setRole("ROLE_USER");
 
         userRepository.save(user);
+    }
+
+    @Override
+    public UserResponse getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        return new UserResponse(
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail()
+        );
+
     }
 }
