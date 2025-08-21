@@ -8,11 +8,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("api/v1/payments")
+@RequestMapping("/api/v1/payments")
 public class PaymentController {
 
     @PostMapping
     public ResponseEntity<String> processPayment(@RequestBody Long orderId) {
+
+//        Uncomment to test successful payment
+//        System.out.println("Processing successful payment for order ID: " + orderId);
+//        return ResponseEntity.ok("Payment successful for order " + orderId);
 
         System.out.println("Received payment request for order ID: " + orderId);
         // Randomly succeed or fail
