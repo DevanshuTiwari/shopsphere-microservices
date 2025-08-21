@@ -1,6 +1,7 @@
 package com.dt.order_service.service;
 
 import com.dt.order_service.dto.*;
+import com.dt.order_service.event.OrderConfirmationEvent;
 import com.dt.order_service.exception.InsufficientStockException;
 import com.dt.order_service.exception.ResourceNotFoundException;
 import com.dt.order_service.model.Order;
@@ -11,6 +12,7 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -25,6 +27,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, OrderConfirmationEvent> kafkaTemplate;
     @Value("${services.user.url}")
     String userServiceUrl;
     @Value("${services.product.url}")
@@ -33,9 +36,10 @@ public class OrderServiceImpl implements OrderService {
     String paymentServiceUrl;
 
     @Autowired
-    public OrderServiceImpl(OrderRepository orderRepository, WebClient.Builder webClientBuilder) {
+    public OrderServiceImpl(OrderRepository orderRepository, WebClient.Builder webClientBuilder, KafkaTemplate<String, OrderConfirmationEvent> kafkaTemplate) {
         this.orderRepository = orderRepository;
         this.webClientBuilder = webClientBuilder;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Override
@@ -86,13 +90,27 @@ public class OrderServiceImpl implements OrderService {
         if (paymentSuccess) {
             // Commit the stock decrease by calling the product service again
             webClientBuilder.build().post()
-                    .uri(productServiceUrl + "api/v1/products/decrease-stock")
+                    .uri(productServiceUrl + "/api/v1/products/decrease-stock")
                     .bodyValue(stockCheckItems)
                     .retrieve()
                     .bodyToMono(Void.class)
                     .block();
 
             order.setStatus("CONFIRMED");
+
+            try {
+                OrderConfirmationEvent orderConfirmationEvent = new OrderConfirmationEvent(
+                        order.getStatus().toString(),
+                        userEmail,
+                        user.firstName(),
+                        user.lastName(),
+                        order.getTotalAmount()
+                );
+                kafkaTemplate.send("notificationTopic", orderConfirmationEvent);
+                log.info("Sent order confirmation event to Kafka for order ID: {}, order.getId()");
+            } catch (Exception e) {
+                log.error("Failed to send order confirmation event to Kafka", e);
+            }
         } else {
             order.setStatus("PAYMENT_FAILED");
         }
