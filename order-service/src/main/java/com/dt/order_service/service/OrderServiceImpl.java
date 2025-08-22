@@ -99,13 +99,22 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus("CONFIRMED");
 
             try {
+                List<OrderItemDTO> itemDTOS = order.getItems().stream()
+                        .map(item -> new OrderItemDTO(
+                                item.getProductId(),
+                                item.getQuantity(),
+                                item.getPricePerUnit()
+                        )).toList();
+
                 OrderConfirmationEvent orderConfirmationEvent = new OrderConfirmationEvent(
                         order.getStatus().toString(),
                         userEmail,
                         user.firstName(),
                         user.lastName(),
-                        order.getTotalAmount()
+                        order.getTotalAmount(),
+                        itemDTOS
                 );
+
                 kafkaTemplate.send("notificationTopic", orderConfirmationEvent);
                 log.info("Sent order confirmation event to Kafka for order ID: {}, order.getId()");
             } catch (Exception e) {
